@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payment Gateway — Deposit</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <style>
+    :root{--bg:#0a0e1a;--card:#111827;--card2:#1a2236;--border:#1e293b;--text:#f1f5f9;--muted:#64748b;--accent:#22d3ee;--accent2:#f97316;--green:#22c55e;--red:#ef4444;--gold:#fbbf24;--purple:#a78bfa;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;background-image:radial-gradient(ellipse 70% 50% at 30% 20%,rgba(34,211,238,.07),transparent),radial-gradient(ellipse 50% 40% at 80% 80%,rgba(249,115,22,.06),transparent);}
+    #auth-gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;}
+    #auth-gate p{color:var(--muted);font-size:.9rem;}
+    header{background:var(--bg);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+    .hdr-brand{display:flex;align-items:center;gap:12px;}
+    .hdr-brand .icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:900;color:#fff;flex-shrink:0;}
+    .hdr-brand h1{font-size:1rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--purple),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .hdr-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .user-email{font-size:.72rem;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .btn-so{background:transparent;border:1px solid var(--border);border-radius:8px;padding:6px 14px;color:var(--muted);font-size:.75rem;cursor:pointer;transition:border-color .2s,color .2s;font-family:inherit;white-space:nowrap;}
+    .btn-so:hover{border-color:var(--red);color:var(--red);}
+    main{max-width:900px;margin:0 auto;padding:24px 16px 48px;}
+    .page-title{margin-bottom:24px;}
+    .page-title h2{font-size:1.3rem;font-weight:800;}
+    .page-title p{color:var(--muted);font-size:.82rem;margin-top:4px;}
+    .layout{display:grid;grid-template-columns:1fr;gap:20px;}
+    @media(min-width:640px){.layout{grid-template-columns:1fr 1fr;}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;}
+    .card-title{font-size:.7rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+    .upi-wrap{text-align:center;}
+    .qr-box{display:inline-block;background:#fff;border-radius:16px;padding:14px;margin-bottom:16px;box-shadow:0 4px 24px rgba(0,0,0,.4);}
+    .qr-box img{display:block;width:180px;height:180px;border-radius:6px;}
+    .upi-id-label{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+    .upi-id-row{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:12px;flex-wrap:wrap;}
+    .upi-id-value{font-size:1rem;font-weight:700;color:var(--accent);word-break:break-all;flex:1;text-align:left;}
+    .btn-copy{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--muted);font-size:.72rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;white-space:nowrap;flex-shrink:0;}
+    .btn-copy:hover{border-color:var(--accent);color:var(--accent);}
+    .btn-copy.copied{border-color:var(--green);color:var(--green);}
+    .upi-name{font-size:.8rem;color:var(--muted);margin-bottom:16px;}
+    .pay-steps{text-align:left;background:var(--card2);border-radius:12px;padding:14px 16px;}
+    .pay-steps h4{font-size:.75rem;font-weight:700;color:var(--text);margin-bottom:10px;}
+    .step{display:flex;gap:10px;margin-bottom:8px;font-size:.78rem;color:var(--muted);line-height:1.5;align-items:flex-start;}
+    .step:last-child{margin-bottom:0;}
+    .step-num{width:20px;height:20px;border-radius:50%;background:rgba(34,211,238,.15);color:var(--accent);font-size:.65rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+    .step em{color:var(--text);font-style:normal;font-weight:600;}
+    .field{margin-bottom:16px;}
+    .field label{display:block;font-size:.73rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+    .field input,.field textarea{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-size:.9rem;outline:none;transition:border-color .2s;font-family:inherit;resize:none;}
+    .field input:focus,.field textarea:focus{border-color:var(--accent);}
+    .field input::placeholder,.field textarea::placeholder{color:var(--muted);}
+    .field .hint{font-size:.7rem;color:var(--muted);margin-top:5px;line-height:1.5;}
+    .amount-preview{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.2);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:.82rem;}
+    .amount-preview span:first-child{color:var(--muted);}
+    .amount-val{font-size:1.1rem;font-weight:800;color:var(--accent);}
+    .submit-btn{width:100%;padding:14px;background:linear-gradient(135deg,#0891b2,#22d3ee);border:none;border-radius:12px;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(34,211,238,.3);transition:box-shadow .2s,transform .15s;font-family:inherit;}
+    .submit-btn:hover:not(:disabled){box-shadow:0 6px 28px rgba(34,211,238,.5);}
+    .submit-btn:active:not(:disabled){transform:scale(.98);}
+    .submit-btn:disabled{opacity:.6;cursor:not-allowed;}
+    .alert{border-radius:10px;padding:12px 16px;font-size:.85rem;line-height:1.5;margin-bottom:16px;display:none;}
+    .alert.error{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:var(--red);}
+    .alert.success{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:var(--green);}
+    .history-section{margin-top:20px;}
+    .dep-list{display:flex;flex-direction:column;gap:10px;}
+    .dep-item{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+    .dep-left{min-width:0;flex:1;}
+    .dep-utr{font-size:.88rem;font-weight:700;color:var(--text);margin-bottom:3px;word-break:break-all;}
+    .dep-meta{font-size:.7rem;color:var(--muted);}
+    .dep-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+    .dep-amount{font-size:.88rem;font-weight:700;color:var(--gold);}
+    .dep-badge{display:inline-block;padding:4px 12px;border-radius:999px;font-size:.72rem;font-weight:700;}
+    .dep-badge.pending{background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.25);color:var(--gold);}
+    .dep-badge.approved{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.25);color:var(--green);}
+    .dep-badge.rejected{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);color:var(--red);}
+    .empty-msg{text-align:center;color:var(--muted);font-size:.82rem;padding:24px 0;}
+    @media(max-width:480px){.qr-box img{width:150px;height:150px;}.upi-id-row{flex-direction:column;gap:8px;}.upi-id-value{text-align:center;}}
+  </style>
+</head>
+<body>
+<div id="auth-gate"><p>Loading&hellip;</p></div>
+
+<header>
+  <div class="hdr-brand"><div class="icon">P</div><h1>Payment Gateway</h1></div>
+  <div class="hdr-right">
+    <span class="user-email" id="user-email"></span>
+    <button class="btn-so" onclick="auth.signOut().then(()=>window.location.href='index.html')">Sign Out</button>
+  </div>
+</header>
+
+<main>
+  <div class="page-title">
+    <h2>Deposit Funds</h2>
+    <p>Pay via UPI and submit your transaction reference for verification</p>
+  </div>
+
+  <div class="layout">
+    <div class="card">
+      <div class="card-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        UPI Payment
+      </div>
+      <div id="no-upi-msg" style="display:none;text-align:center;padding:24px 0;color:var(--muted);font-size:.85rem;">Payment not configured.<br/>Please contact the administrator.</div>
+      <div id="upi-content" class="upi-wrap">
+        <div class="qr-box"><img id="qr-img" src="" alt="UPI QR Code"/></div>
+        <div class="upi-id-label">UPI ID</div>
+        <div class="upi-id-row">
+          <div class="upi-id-value" id="upi-id-text">Loading&hellip;</div>
+          <button class="btn-copy" id="copy-btn" onclick="copyUPI()">Copy</button>
+        </div>
+        <div class="upi-name" id="upi-name-text"></div>
+      </div>
+      <div class="pay-steps">
+        <h4>How to Pay</h4>
+        <div class="step"><div class="step-num">1</div><div>Open any UPI app &mdash; <em>PhonePe, GPay, Paytm, BHIM</em></div></div>
+        <div class="step"><div class="step-num">2</div><div><em>Scan the QR code</em> or enter the UPI ID manually</div></div>
+        <div class="step"><div class="step-num">3</div><div>Enter your deposit amount and complete the payment</div></div>
+        <div class="step"><div class="step-num">4</div><div>Copy the <em>UTR / Transaction ID</em> from your UPI app</div></div>
+        <div class="step"><div class="step-num">5</div><div>Paste the UTR in the form and click <em>Submit</em></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        Submit Payment
+      </div>
+      <div class="alert error" id="form-err"></div>
+      <div class="alert success" id="form-ok"></div>
+      <form id="dep-form">
+        <div class="field">
+          <label>Amount Paid (&#8377;)</label>
+          <input type="number" id="dep-amount" placeholder="e.g. 500" min="1" step="1" required/>
+          <div class="hint">Enter the exact amount you transferred</div>
+        </div>
+        <div class="amount-preview" id="amount-preview" style="display:none;">
+          <span>You are depositing</span>
+          <span class="amount-val" id="amount-val-display">&#8377;0</span>
+        </div>
+        <div class="field">
+          <label>UTR / Transaction ID</label>
+          <input type="text" id="dep-utr" placeholder="e.g. 407812345678" required autocomplete="off"/>
+          <div class="hint">12-digit UTR number shown in your UPI app after payment</div>
+        </div>
+        <div class="field">
+          <label>Note (optional)</label>
+          <textarea id="dep-note" rows="2" placeholder="Any additional details&hellip;"></textarea>
+        </div>
+        <button class="submit-btn" type="submit" id="dep-btn">Submit for Verification</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="history-section">
+    <div class="card">
+      <div class="card-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        My Deposit History
+      </div>
+      <div class="dep-list" id="dep-list"><div class="empty-msg">Loading&hellip;</div></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  let currentUser = null;
+  let currentUpiId = '';
+
+  auth.onAuthStateChanged(async user => {
+    if (!user) { window.location.href = 'index.html'; return; }
+    try {
+      const snap = await db.collection('users').doc(user.uid).get();
+      if (!snap.exists || snap.data().active === false) { await auth.signOut(); window.location.href = 'index.html'; return; }
+      if (snap.data().role === 'admin') { window.location.href = 'admin.html'; return; }
+    } catch(e) {}
+    currentUser = user;
+    document.getElementById('user-email').textContent = user.email;
+    document.getElementById('auth-gate').style.display = 'none';
+    loadPaymentSettings();
+    loadDepositHistory();
+  });
+
+  function loadPaymentSettings() {
+    db.collection('settings').doc('payment').onSnapshot(snap => {
+      if (!snap.exists || !snap.data().upiId) {
+        document.getElementById('upi-content').style.display = 'none';
+        document.getElementById('no-upi-msg').style.display = 'block';
+        return;
+      }
+      const d = snap.data();
+      currentUpiId = d.upiId;
+      document.getElementById('upi-content').style.display = 'block';
+      document.getElementById('no-upi-msg').style.display = 'none';
+      document.getElementById('upi-id-text').textContent = d.upiId;
+      document.getElementById('upi-name-text').textContent = d.upiName ? 'Pay to: ' + d.upiName : '';
+      const upiLink = 'upi://pay?pa=' + encodeURIComponent(d.upiId) + (d.upiName ? '&pn=' + encodeURIComponent(d.upiName) : '') + '&cu=INR';
+      document.getElementById('qr-img').src = d.upiQrUrl || ('https://api.qrserver.com/v1/create-qr-code/?size=200x200&ecc=M&data=' + encodeURIComponent(upiLink));
+    });
+  }
+
+  function copyUPI() {
+    if (!currentUpiId) return;
+    const done = () => { const b = document.getElementById('copy-btn'); b.textContent = 'Copied!'; b.classList.add('copied'); setTimeout(() => { b.textContent = 'Copy'; b.classList.remove('copied'); }, 2000); };
+    if (navigator.clipboard) navigator.clipboard.writeText(currentUpiId).then(done);
+    else { const t = document.createElement('textarea'); t.value = currentUpiId; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); done(); }
+  }
+
+  document.getElementById('dep-amount').addEventListener('input', function() {
+    const v = parseFloat(this.value);
+    const p = document.getElementById('amount-preview');
+    if (v > 0) { document.getElementById('amount-val-display').textContent = '₹' + v.toLocaleString('en-IN'); p.style.display = 'flex'; }
+    else p.style.display = 'none';
+  });
+
+  document.getElementById('dep-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const errEl = document.getElementById('form-err');
+    const okEl  = document.getElementById('form-ok');
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+    const amount = parseFloat(document.getElementById('dep-amount').value);
+    const utr    = document.getElementById('dep-utr').value.trim();
+    const note   = document.getElementById('dep-note').value.trim();
+    if (!amount || amount < 1) { show(errEl, 'Please enter a valid amount (minimum ₹1).'); return; }
+    if (!utr)                  { show(errEl, 'Please enter your UTR / Transaction ID.'); return; }
+    if (utr.length < 6)        { show(errEl, 'UTR / Transaction ID looks too short. Please check and try again.'); return; }
+    const btn = document.getElementById('dep-btn');
+    btn.disabled = true; btn.textContent = 'Submitting…';
+    try {
+      const dup = await db.collection('deposits').where('utrId', '==', utr).limit(1).get();
+      if (!dup.empty) { show(errEl, 'This UTR has already been submitted. Contact support if you believe this is an error.'); btn.disabled = false; btn.textContent = 'Submit for Verification'; return; }
+      await db.collection('deposits').add({ uid: currentUser.uid, email: currentUser.email, amount, utrId: utr, note: note || '', status: 'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      document.getElementById('dep-form').reset();
+      document.getElementById('amount-preview').style.display = 'none';
+      show(okEl, '✓ Submitted! Your deposit of ₹' + amount.toLocaleString('en-IN') + ' is under review. Check the status below.');
+    } catch(err) { show(errEl, 'Error: ' + err.message); }
+    btn.disabled = false; btn.textContent = 'Submit for Verification';
+  });
+
+  function show(el, msg) { el.textContent = msg; el.style.display = 'block'; }
+
+  function loadDepositHistory() {
+    const uid = auth.currentUser.uid;
+    const render = docs => {
+      const list = document.getElementById('dep-list');
+      if (!docs.length) { list.innerHTML = '<div class="empty-msg">No deposits yet. Make your first deposit above.</div>'; return; }
+      list.innerHTML = docs.map(d => {
+        const date = d.createdAt ? new Date(d.createdAt.seconds * 1000).toLocaleString('en-IN') : '-';
+        const label = d.status === 'approved' ? '✓ Approved' : d.status === 'rejected' ? '✗ Rejected' : '⏳ Pending';
+        const extra = d.status === 'rejected' && d.rejectNote ? ' · ' + esc(d.rejectNote) : '';
+        return '<div class="dep-item"><div class="dep-left"><div class="dep-utr">UTR: ' + esc(d.utrId) + '</div><div class="dep-meta">' + date + (d.note ? ' · ' + esc(d.note) : '') + extra + '</div></div><div class="dep-right"><div class="dep-amount">₹' + Number(d.amount).toLocaleString('en-IN') + '</div><div class="dep-badge ' + esc(d.status) + '">' + label + '</div></div></div>';
+      }).join('');
+    };
+    db.collection('deposits').where('uid', '==', uid).orderBy('createdAt', 'desc').limit(30)
+      .onSnapshot(snap => render(snap.docs.map(d => d.data())),
+        () => db.collection('deposits').where('uid', '==', uid).onSnapshot(snap =>
+          render(snap.docs.map(d => d.data()).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).slice(0,30))
+        )
+      );
+  }
+
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
