@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payment Gateway — Admin</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <style>
+    :root{--bg:#0a0e1a;--sb:#0d1424;--card:#111827;--card2:#1a2236;--border:#1e293b;--text:#f1f5f9;--muted:#64748b;--accent:#22d3ee;--accent2:#f97316;--green:#22c55e;--red:#ef4444;--gold:#fbbf24;--purple:#a78bfa;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+    .layout{display:flex;min-height:100vh;}
+    .sidebar{width:220px;min-height:100vh;background:var(--sb);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .3s;}
+    .sb-logo{padding:20px;border-bottom:1px solid var(--border);}
+    .sb-logo h2{font-size:1rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .sb-logo p{font-size:.7rem;color:var(--muted);margin-top:2px;}
+    .sb-nav{flex:1;padding:14px 10px;display:flex;flex-direction:column;gap:4px;}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:.84rem;font-weight:500;color:var(--muted);text-decoration:none;transition:background .2s,color .2s;cursor:pointer;border:none;background:transparent;width:100%;text-align:left;font-family:inherit;}
+    .nav-item:hover{background:var(--card2);color:var(--text);}
+    .nav-item.active{background:rgba(34,211,238,.1);color:var(--accent);}
+    .sb-foot{padding:16px;border-top:1px solid var(--border);}
+    .sb-email{font-size:.72rem;color:var(--muted);margin-bottom:10px;word-break:break-all;}
+    .btn-so{width:100%;padding:9px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:.82rem;cursor:pointer;transition:border-color .2s,color .2s;font-family:inherit;}
+    .btn-so:hover{border-color:var(--red);color:var(--red);}
+    .main{margin-left:220px;flex:1;padding:24px;}
+    .topbar{display:flex;align-items:center;gap:12px;margin-bottom:24px;}
+    .topbar h1{font-size:1.3rem;font-weight:800;}
+    .hamburger{display:none;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer;color:var(--text);align-items:center;justify-content:center;}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+    .stat{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;}
+    .stat-val{font-size:2rem;font-weight:800;}
+    .stat-lbl{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px;}
+    .c-gold{color:var(--gold);}.c-green{color:var(--green);}.c-orange{color:var(--accent2);}
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}
+    @media(max-width:800px){.two-col{grid-template-columns:1fr;}}
+    .card-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;}
+    .card-box h3{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:16px;}
+    .sec-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+    .sec-hdr h2{font-size:.95rem;font-weight:700;}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .search{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 14px;color:var(--text);font-size:.84rem;outline:none;transition:border-color .2s;font-family:inherit;width:220px;}
+    .search:focus{border-color:var(--accent);}
+    .search::placeholder{color:var(--muted);}
+    select.search{width:auto;cursor:pointer;}
+    .tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:24px;overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;font-size:.84rem;min-width:640px;}
+    th{background:var(--card2);color:var(--muted);font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;padding:12px 16px;text-align:left;white-space:nowrap;}
+    td{padding:13px 16px;border-top:1px solid var(--border);vertical-align:middle;}
+    tr:hover td{background:rgba(255,255,255,.02);}
+    .empty td{text-align:center;color:var(--muted);padding:40px;}
+    .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;}
+    .badge.approved{background:rgba(34,197,94,.15);color:var(--green);}
+    .badge.rejected{background:rgba(239,68,68,.15);color:var(--red);}
+    .badge.pending{background:rgba(251,191,36,.15);color:var(--gold);}
+    .acts{display:flex;gap:8px;}
+    .bsm{padding:5px 11px;border-radius:8px;font-size:.74rem;font-weight:600;cursor:pointer;border:1px solid;transition:opacity .2s;font-family:inherit;background:transparent;}
+    .bsm:hover{opacity:.75;}
+    .bsm.approve{border-color:var(--green);color:var(--green);}
+    .bsm.reject{border-color:var(--red);color:var(--red);}
+    .field{margin-bottom:14px;}
+    .field label{display:block;font-size:.73rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+    .field input{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:.88rem;outline:none;transition:border-color .2s;font-family:inherit;}
+    .field input:focus{border-color:var(--accent);}
+    .field input::placeholder{color:var(--muted);}
+    .field .hint{font-size:.68rem;color:var(--muted);margin-top:4px;}
+    .s-alert{border-radius:8px;padding:10px 14px;font-size:.82rem;margin-bottom:12px;display:none;}
+    .s-alert.err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:var(--red);}
+    .s-alert.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:var(--green);}
+    .btn-save{background:linear-gradient(135deg,#0891b2,#22d3ee);border:none;border-radius:10px;padding:10px 22px;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(34,211,238,.3);font-family:inherit;transition:box-shadow .2s;}
+    .btn-save:hover{box-shadow:0 6px 20px rgba(34,211,238,.5);}
+    .btn-save:disabled{opacity:.6;cursor:not-allowed;}
+    .qr-preview-wrap{text-align:center;padding:10px 0;}
+    .admin-qr-box{display:inline-block;background:#fff;border-radius:12px;padding:12px;box-shadow:0 4px 20px rgba(0,0,0,.4);}
+    .admin-qr-box img{display:block;width:150px;height:150px;border-radius:4px;}
+    .admin-upi-label{font-size:.72rem;color:var(--muted);margin-top:10px;text-transform:uppercase;letter-spacing:1px;}
+    .admin-upi-val{font-size:.9rem;font-weight:700;color:var(--accent);margin-top:4px;word-break:break-all;}
+    .admin-upi-name{font-size:.78rem;color:var(--muted);margin-top:4px;}
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:200;padding:16px;}
+    .overlay.open{display:flex;}
+    .modal{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;width:100%;max-width:420px;}
+    .modal h3{font-size:1.05rem;font-weight:700;margin-bottom:20px;}
+    .m-acts{display:flex;gap:10px;margin-top:20px;}
+    .btn-danger{flex:1;padding:11px;background:linear-gradient(135deg,#dc2626,#ef4444);border:none;border-radius:10px;color:#fff;font-size:.9rem;font-weight:700;cursor:pointer;font-family:inherit;}
+    .btn-danger:disabled{opacity:.6;cursor:not-allowed;}
+    .btn-cancel{flex:1;padding:11px;background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:.9rem;font-weight:600;cursor:pointer;font-family:inherit;}
+    .btn-cancel:hover{color:var(--text);}
+    .sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;}
+    @media(max-width:700px){.sidebar{transform:translateX(-100%);}.sidebar.open{transform:translateX(0);}.sb-overlay.open{display:block;}.main{margin-left:0;padding:16px;}.hamburger{display:flex;}.stats{grid-template-columns:1fr 1fr;}.stats .stat:last-child{grid-column:span 2;}.search{width:100%;}}
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sb">
+    <div class="sb-logo"><h2>Payment Gateway</h2><p>Admin Panel</p></div>
+    <nav class="sb-nav">
+      <button class="nav-item active" id="nav-dash" onclick="switchView('dashboard')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Payments
+      </button>
+      <button class="nav-item" id="nav-settings" onclick="switchView('settings')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        UPI Settings
+      </button>
+    </nav>
+    <div class="sb-foot">
+      <div class="sb-email" id="admin-email"></div>
+      <button class="btn-so" onclick="auth.signOut().then(()=>window.location.href='index.html')">Sign Out</button>
+    </div>
+  </aside>
+  <div class="sb-overlay" id="sb-overlay" onclick="closeSb()"></div>
+
+  <main class="main">
+
+    <!-- PAYMENTS DASHBOARD -->
+    <div id="view-dashboard">
+      <div class="topbar">
+        <button class="hamburger" onclick="toggleSb()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <h1>Payment Management</h1>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-val c-gold" id="ps-pending">-</div><div class="stat-lbl">Pending</div></div>
+        <div class="stat"><div class="stat-val c-green" id="ps-approved">-</div><div class="stat-lbl">Approved (&#8377;)</div></div>
+        <div class="stat"><div class="stat-val c-orange" id="ps-rejected">-</div><div class="stat-lbl">Rejected</div></div>
+      </div>
+      <div class="sec-hdr">
+        <h2>Deposit Requests</h2>
+        <div class="controls">
+          <input class="search" id="dep-search" type="text" placeholder="Search email or UTR&hellip;" oninput="filterDeposits()"/>
+          <select class="search" id="dep-filter" onchange="filterDeposits()">
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>User</th><th>Amount</th><th>UTR / Txn ID</th><th>Note</th><th>Submitted</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="dep-tbody"><tr class="empty"><td colspan="7">Loading&hellip;</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- UPI SETTINGS -->
+    <div id="view-settings" style="display:none">
+      <div class="topbar">
+        <button class="hamburger" onclick="toggleSb()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <h1>UPI Settings</h1>
+      </div>
+      <div class="two-col">
+        <div class="card-box">
+          <h3>UPI Configuration</h3>
+          <div class="s-alert err" id="s-err"></div>
+          <div class="s-alert ok" id="s-ok"></div>
+          <form id="upi-form">
+            <div class="field"><label>UPI ID</label><input id="s-upi-id" placeholder="yourname@upi" required/></div>
+            <div class="field"><label>Account Holder Name</label><input id="s-upi-name" placeholder="Your Name"/></div>
+            <div class="field"><label>Custom QR Image URL (optional)</label><input id="s-qr-url" placeholder="Leave blank to auto-generate"/><div class="hint">If provided, this image is shown as the QR code instead of the auto-generated one.</div></div>
+            <button class="btn-save" type="submit" id="s-save-btn">Save Settings</button>
+          </form>
+        </div>
+        <div class="card-box">
+          <h3>Customer QR Preview</h3>
+          <div id="qr-empty-msg" style="text-align:center;color:var(--muted);font-size:.82rem;padding:20px 0;">Configure a UPI ID to see the preview.</div>
+          <div id="qr-preview-content" style="display:none" class="qr-preview-wrap">
+            <div class="admin-qr-box"><img id="admin-qr-img" src="" alt="UPI QR Code"/></div>
+            <div class="admin-upi-label">UPI ID</div>
+            <div class="admin-upi-val" id="admin-upi-val">-</div>
+            <div class="admin-upi-name" id="admin-upi-name"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Reject Modal -->
+<div class="overlay" id="rej-modal">
+  <div class="modal">
+    <h3>Reject Deposit</h3>
+    <div class="field"><label>Reason (optional)</label><input id="rej-note" placeholder="e.g. UTR not found in bank records"/></div>
+    <div class="m-acts">
+      <button type="button" class="btn-cancel" onclick="closeRejModal()">Cancel</button>
+      <button type="button" class="btn-danger" id="rej-btn" onclick="confirmReject()">Reject</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let allDeposits = [];
+  let rejectTargetId = null;
+
+  auth.onAuthStateChanged(async user => {
+    if (!user) { window.location.href = 'index.html'; return; }
+    const snap = await db.collection('users').doc(user.uid).get();
+    if (!snap.exists || snap.data().role !== 'admin') { window.location.href = 'deposit.html'; return; }
+    document.getElementById('admin-email').textContent = user.email;
+    loadUpiSettings();
+    loadDeposits();
+  });
+
+  function switchView(v) {
+    document.getElementById('view-dashboard').style.display = v === 'dashboard' ? 'block' : 'none';
+    document.getElementById('view-settings').style.display  = v === 'settings'  ? 'block' : 'none';
+    document.getElementById('nav-dash').classList.toggle('active', v === 'dashboard');
+    document.getElementById('nav-settings').classList.toggle('active', v === 'settings');
+    closeSb();
+  }
+
+  function loadUpiSettings() {
+    db.collection('settings').doc('payment').onSnapshot(snap => {
+      if (!snap.exists || !snap.data().upiId) return;
+      const d = snap.data();
+      document.getElementById('s-upi-id').value  = d.upiId   || '';
+      document.getElementById('s-upi-name').value = d.upiName  || '';
+      document.getElementById('s-qr-url').value   = d.upiQrUrl || '';
+      updateQrPreview(d);
+    });
+  }
+
+  function updateQrPreview(d) {
+    if (!d.upiId) { document.getElementById('qr-empty-msg').style.display='block'; document.getElementById('qr-preview-content').style.display='none'; return; }
+    document.getElementById('qr-empty-msg').style.display='none';
+    document.getElementById('qr-preview-content').style.display='block';
+    const upiLink = 'upi://pay?pa=' + encodeURIComponent(d.upiId) + (d.upiName ? '&pn=' + encodeURIComponent(d.upiName) : '') + '&cu=INR';
+    document.getElementById('admin-qr-img').src = d.upiQrUrl || ('https://api.qrserver.com/v1/create-qr-code/?size=160x160&ecc=M&data=' + encodeURIComponent(upiLink));
+    document.getElementById('admin-upi-val').textContent  = d.upiId;
+    document.getElementById('admin-upi-name').textContent = d.upiName ? 'Pay to: ' + d.upiName : '';
+  }
+
+  document.getElementById('upi-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const errEl = document.getElementById('s-err'), okEl = document.getElementById('s-ok');
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+    const upiId = document.getElementById('s-upi-id').value.trim();
+    const upiName = document.getElementById('s-upi-name').value.trim();
+    const qrUrl  = document.getElementById('s-qr-url').value.trim();
+    if (!upiId) { errEl.textContent = 'UPI ID is required.'; errEl.style.display = 'block'; return; }
+    const btn = document.getElementById('s-save-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      await db.collection('settings').doc('payment').set({ upiId, upiName, upiQrUrl: qrUrl }, { merge: true });
+      updateQrPreview({ upiId, upiName, upiQrUrl: qrUrl });
+      okEl.textContent = '✓ Settings saved. Customers will see the updated QR immediately.';
+      okEl.style.display = 'block';
+      setTimeout(() => okEl.style.display = 'none', 4000);
+    } catch(err) { errEl.textContent = err.message; errEl.style.display = 'block'; }
+    btn.disabled = false; btn.textContent = 'Save Settings';
+  });
+
+  function loadDeposits() {
+    db.collection('deposits').orderBy('createdAt', 'desc').limit(500)
+      .onSnapshot(
+        snap => { allDeposits = snap.docs.map(d => ({ id: d.id, ...d.data() })); updateStats(); filterDeposits(); },
+        () => db.collection('deposits').onSnapshot(snap => {
+          allDeposits = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+          updateStats(); filterDeposits();
+        })
+      );
+  }
+
+  function updateStats() {
+    const pending  = allDeposits.filter(d => d.status === 'pending').length;
+    const approved = allDeposits.filter(d => d.status === 'approved');
+    const total    = approved.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+    const rejected = allDeposits.filter(d => d.status === 'rejected').length;
+    document.getElementById('ps-pending').textContent  = pending;
+    document.getElementById('ps-approved').textContent = '₹' + total.toLocaleString('en-IN');
+    document.getElementById('ps-rejected').textContent = rejected;
+  }
+
+  function filterDeposits() {
+    const q = document.getElementById('dep-search').value.toLowerCase();
+    const status = document.getElementById('dep-filter').value;
+    renderDeposits(allDeposits.filter(d => {
+      const matchQ = !q || (d.email||'').toLowerCase().includes(q) || (d.utrId||'').toLowerCase().includes(q);
+      return matchQ && (status === 'all' || d.status === status);
+    }));
+  }
+
+  function renderDeposits(list) {
+    const tbody = document.getElementById('dep-tbody');
+    if (!list.length) { tbody.innerHTML = '<tr class="empty"><td colspan="7">No deposit requests found.</td></tr>'; return; }
+    tbody.innerHTML = list.map(d => {
+      const date  = d.createdAt ? new Date(d.createdAt.seconds * 1000).toLocaleString('en-IN') : '-';
+      const badge = '<span class="badge ' + esc(d.status) + '">' + (d.status==='approved' ? '✓ Approved' : d.status==='rejected' ? '✗ Rejected' : '⏳ Pending') + '</span>';
+      const actions = d.status === 'pending'
+        ? '<div class="acts"><button class="bsm approve" onclick="approveDeposit(\'' + d.id + '\',\'' + esc(d.email) + '\',' + (d.amount||0) + ')">Approve</button><button class="bsm reject" onclick="openRejModal(\'' + d.id + '\')" >Reject</button></div>'
+        : '<span style="color:var(--muted);font-size:.74rem;">' + (d.processedBy ? esc(d.processedBy) : '—') + '</span>';
+      return '<tr><td style="font-size:.8rem;">' + esc(d.email||'-') + '</td><td style="font-weight:700;color:var(--gold);">₹' + Number(d.amount||0).toLocaleString('en-IN') + '</td><td style="font-family:monospace;font-size:.8rem;">' + esc(d.utrId||'-') + '</td><td style="font-size:.75rem;color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + esc(d.note||'') + '">' + esc(d.note||'—') + '</td><td style="font-size:.75rem;white-space:nowrap;">' + date + '</td><td>' + badge + '</td><td>' + actions + '</td></tr>';
+    }).join('');
+  }
+
+  async function approveDeposit(id, email, amount) {
+    if (!confirm('Approve deposit of ₹' + Number(amount).toLocaleString('en-IN') + ' for ' + email + '?')) return;
+    await db.collection('deposits').doc(id).update({ status: 'approved', processedAt: firebase.firestore.FieldValue.serverTimestamp(), processedBy: auth.currentUser.email });
+  }
+
+  function openRejModal(id)  { rejectTargetId = id; document.getElementById('rej-note').value = ''; document.getElementById('rej-modal').classList.add('open'); }
+  function closeRejModal()   { document.getElementById('rej-modal').classList.remove('open'); rejectTargetId = null; }
+  async function confirmReject() {
+    if (!rejectTargetId) return;
+    const note = document.getElementById('rej-note').value.trim();
+    const btn  = document.getElementById('rej-btn');
+    btn.disabled = true; btn.textContent = 'Rejecting…';
+    try {
+      await db.collection('deposits').doc(rejectTargetId).update({ status: 'rejected', rejectNote: note, processedAt: firebase.firestore.FieldValue.serverTimestamp(), processedBy: auth.currentUser.email });
+      closeRejModal();
+    } catch(e) { alert('Error: ' + e.message); }
+    btn.disabled = false; btn.textContent = 'Reject';
+  }
+
+  function toggleSb() { document.getElementById('sb').classList.toggle('open'); document.getElementById('sb-overlay').classList.toggle('open'); }
+  function closeSb()  { document.getElementById('sb').classList.remove('open'); document.getElementById('sb-overlay').classList.remove('open'); }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
