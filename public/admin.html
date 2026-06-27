@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — UPI Payment Gateway</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    /* ── Layout ─── */
+    body { background: #f1f5f9; }
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ─── */
+    .sidebar {
+      width: 240px; flex-shrink: 0;
+      background: #1e1b4b;
+      display: flex; flex-direction: column;
+      padding: 1.5rem 0;
+      position: sticky; top: 0; height: 100vh;
+      overflow-y: auto;
+    }
+    .sidebar-brand {
+      padding: 0 1.5rem 1.5rem;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      margin-bottom: 1rem;
+    }
+    .sidebar-brand h2 { color: #fff; font-size: 1rem; }
+    .sidebar-brand p  { color: rgba(255,255,255,.5); font-size: 0.78rem; margin-top: 0.1rem; }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.7rem 1.5rem;
+      color: rgba(255,255,255,.65);
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all .18s;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .nav-item:hover    { color: #fff; background: rgba(255,255,255,.06); }
+    .nav-item.active   { color: #fff; background: rgba(255,255,255,.1); border-left-color: #818cf8; }
+    .nav-icon { font-size: 1.1rem; width: 20px; text-align: center; }
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 1rem 1.5rem 0;
+      border-top: 1px solid rgba(255,255,255,.1);
+    }
+    .sidebar-footer button {
+      background: none; border: none; color: rgba(255,255,255,.5); cursor: pointer;
+      font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem;
+    }
+    .sidebar-footer button:hover { color: rgba(255,255,255,.85); }
+
+    /* ── Main ─── */
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .topbar {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .topbar h1 { font-size: 1.15rem; }
+    .page-content { padding: 2rem; flex: 1; }
+
+    /* ── Stats ─── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.5rem;
+      border: 1px solid var(--border);
+    }
+    .stat-card .stat-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); font-weight: 600; }
+    .stat-card .stat-value { font-size: 1.9rem; font-weight: 700; margin: 0.3rem 0; line-height: 1; }
+    .stat-card .stat-sub   { font-size: 0.8rem; color: var(--text-muted); }
+    .stat-card.primary .stat-value { color: var(--primary); }
+    .stat-card.success .stat-value { color: var(--success); }
+    .stat-card.warning .stat-value { color: var(--warning); }
+    .stat-card.info    .stat-value { color: var(--info); }
+
+    /* ── Filters ─── */
+    .filters {
+      display: flex; gap: 0.75rem; margin-bottom: 1rem;
+      flex-wrap: wrap; align-items: center;
+    }
+    .filter-tabs { display: flex; gap: 0.25rem; background: var(--bg); border-radius: var(--radius); padding: 0.25rem; border: 1px solid var(--border); }
+    .filter-tab {
+      padding: 0.35rem 0.85rem; border-radius: calc(var(--radius) - 2px); font-size: 0.85rem; font-weight: 500;
+      cursor: pointer; border: none; background: none; color: var(--text-muted); transition: all .18s;
+    }
+    .filter-tab.active { background: var(--white); color: var(--text); box-shadow: var(--shadow-sm); }
+    .search-box { flex: 1; min-width: 200px; max-width: 320px; }
+    .search-box input { font-size: 0.875rem; }
+
+    /* ── Orders table ─── */
+    .orders-card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .orders-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .orders-header h3 { font-size: 0.95rem; }
+    .amount-cell { font-weight: 700; }
+    .utr-cell  { font-family: monospace; font-size: 0.85rem; color: var(--primary); }
+    .order-id-cell { font-family: monospace; font-size: 0.82rem; }
+    .actions-cell { display: flex; gap: 0.5rem; }
+    .empty-state { text-align: center; padding: 3rem; color: var(--text-muted); }
+    .empty-state .emoji { font-size: 2.5rem; margin-bottom: 0.75rem; }
+
+    /* Pagination */
+    .pagination { display: flex; align-items: center; gap: 0.5rem; justify-content: center; padding: 1rem; border-top: 1px solid var(--border); }
+    .page-btn {
+      width: 34px; height: 34px; border-radius: var(--radius);
+      border: 1.5px solid var(--border); background: var(--white);
+      cursor: pointer; font-size: 0.85rem; font-weight: 500;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .18s;
+    }
+    .page-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+    .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .page-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Settings ─── */
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .settings-section {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+    }
+    .settings-section h3 { font-size: 0.95rem; margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+
+    /* ── Create link ─── */
+    .create-card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .link-result {
+      background: var(--primary-light);
+      border: 1.5px solid #c7d2fe;
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-top: 1rem;
+      display: none;
+    }
+    .link-result .link-url {
+      font-family: monospace;
+      font-size: 0.9rem;
+      word-break: break-all;
+      color: var(--primary-dark);
+      margin: 0.5rem 0;
+    }
+
+    /* ── Login overlay ─── */
+    #loginOverlay {
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg, #1e1b4b, #4f46e5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200;
+    }
+    .login-box {
+      background: var(--white);
+      border-radius: var(--radius-xl);
+      padding: 2.5rem;
+      width: 100%; max-width: 380px;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+    }
+    .login-box h2 { margin-bottom: 0.35rem; }
+    .login-box p  { color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.9rem; }
+
+    /* ── View order modal extras ─── */
+    .order-detail-row { display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .order-detail-row:last-child { border-bottom: none; }
+    .order-detail-label { color: var(--text-muted); }
+    .order-detail-value { font-weight: 500; text-align: right; max-width: 60%; word-break: break-all; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .page-content { padding: 1rem; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .settings-grid { grid-template-columns: 1fr; }
+      .topbar { padding: 0.75rem 1rem; }
+    }
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Login overlay -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <div style="font-size:2.5rem;margin-bottom:.75rem;">🔐</div>
+    <h2>Admin Login</h2>
+    <p>Enter your admin password to continue</p>
+    <div class="form-group" style="text-align:left">
+      <label for="pwInput">Password</label>
+      <input type="password" id="pwInput" placeholder="Enter password" />
+      <div class="error-msg hidden" id="loginError">Incorrect password</div>
+    </div>
+    <button class="btn btn-primary btn-block btn-lg" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
+<!-- App layout -->
+<div class="layout" id="app" style="display:none">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2>⚡ Pay Gateway</h2>
+      <p>Admin Panel</p>
+    </div>
+    <nav>
+      <div class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('create')" id="nav-create">
+        <span class="nav-icon">➕</span> Create Payment
+      </div>
+      <div class="nav-item" onclick="showPage('orders')" id="nav-orders">
+        <span class="nav-icon">📋</span> All Orders
+      </div>
+      <div class="nav-item" onclick="showPage('settings')" id="nav-settings">
+        <span class="nav-icon">⚙️</span> Settings
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <button onclick="logout()">🚪 Logout</button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+    <div class="topbar">
+      <h1 id="pageTitle">Dashboard</h1>
+      <div style="font-size:0.82rem;color:var(--text-muted);" id="merchantBadge">—</div>
+    </div>
+
+    <div class="page-content">
+
+      <!-- ── Dashboard ── -->
+      <div id="page-dashboard">
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card">
+            <div class="stat-label">Loading…</div>
+            <div class="stat-value">—</div>
+          </div>
+        </div>
+
+        <!-- Recent submitted orders needing action -->
+        <div class="orders-card">
+          <div class="orders-header">
+            <h3>⏳ Awaiting Verification</h3>
+            <button class="btn btn-ghost btn-sm" onclick="loadSubmitted()">Refresh</button>
+          </div>
+          <div id="submittedTable"><div class="empty-state"><div class="emoji">✨</div><p>No pending verifications</p></div></div>
+        </div>
+      </div>
+
+      <!-- ── Create Payment ── -->
+      <div id="page-create" class="hidden">
+        <div class="create-card">
+          <div class="card-header">
+            <h3>Generate Payment Link</h3>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Amount (₹) *</label>
+              <input type="number" id="createAmount" placeholder="0.00" min="1" step="0.01" />
+            </div>
+            <div class="form-group">
+              <label>Customer Name</label>
+              <input type="text" id="createName" placeholder="Optional" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Description *</label>
+              <input type="text" id="createDesc" placeholder="e.g. Event ticket, Order #123" />
+            </div>
+            <div class="form-group">
+              <label>Customer Email</label>
+              <input type="email" id="createEmail" placeholder="Optional" />
+            </div>
+          </div>
+          <div class="error-msg hidden" id="createError"></div>
+          <button class="btn btn-primary btn-lg" onclick="createOrder()">Create Payment Link</button>
+
+          <div class="link-result" id="linkResult">
+            <div style="font-weight:600;margin-bottom:.5rem;">✅ Payment link created!</div>
+            <div class="link-url" id="linkUrl"></div>
+            <div style="display:flex;gap:.5rem;margin-top:.75rem;flex-wrap:wrap">
+              <button class="btn btn-outline btn-sm" onclick="copyLink()">Copy Link</button>
+              <button class="btn btn-ghost btn-sm" onclick="openLink()">Open →</button>
+            </div>
+            <div style="margin-top:.5rem;font-size:.8rem;color:var(--text-muted)">Order ID: <code id="createdOrderId"></code></div>
+          </div>
+        </div>
+
+        <!-- Recent links -->
+        <div class="orders-card">
+          <div class="orders-header"><h3>Recent Payment Links</h3></div>
+          <div id="recentLinksTable"></div>
+        </div>
+      </div>
+
+      <!-- ── All Orders ── -->
+      <div id="page-orders" class="hidden">
+        <div class="filters">
+          <div class="filter-tabs" id="filterTabs">
+            <button class="filter-tab active" data-status="all"      onclick="setFilter('all')">All</button>
+            <button class="filter-tab"        data-status="pending"   onclick="setFilter('pending')">Pending</button>
+            <button class="filter-tab"        data-status="submitted" onclick="setFilter('submitted')">Submitted</button>
+            <button class="filter-tab"        data-status="verified"  onclick="setFilter('verified')">Verified</button>
+            <button class="filter-tab"        data-status="rejected"  onclick="setFilter('rejected')">Rejected</button>
+          </div>
+          <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search order, UTR, customer…" oninput="debouncedSearch()" />
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="loadOrders()">Refresh</button>
+        </div>
+
+        <div class="orders-card">
+          <div class="orders-header">
+            <h3 id="ordersCountLabel">Orders</h3>
+            <span id="ordersTotal" style="font-size:.82rem;color:var(--text-muted)"></span>
+          </div>
+          <div class="table-wrap">
+            <table id="ordersTable">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Description</th>
+                  <th>Customer</th>
+                  <th>Amount</th>
+                  <th>UTR</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="ordersBody">
+                <tr><td colspan="8" class="empty-state"><div class="emoji">📭</div><p>Loading…</p></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination" id="pagination"></div>
+        </div>
+      </div>
+
+      <!-- ── Settings ── -->
+      <div id="page-settings" class="hidden">
+        <div class="settings-grid">
+          <div class="settings-section">
+            <h3>UPI Configuration</h3>
+            <div class="form-group">
+              <label>UPI ID *</label>
+              <input type="text" id="setUpiId" placeholder="merchant@upi" />
+              <div class="hint">e.g. yourname@paytm, 9876543210@ybl</div>
+            </div>
+            <div class="form-group">
+              <label>Merchant Name *</label>
+              <input type="text" id="setMerchantName" placeholder="My Store" />
+            </div>
+            <div class="form-group">
+              <label>Merchant Logo URL</label>
+              <input type="url" id="setMerchantLogo" placeholder="https://…" />
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>Support & Automation</h3>
+            <div class="form-group">
+              <label>Support Phone</label>
+              <input type="tel" id="setSupportPhone" placeholder="+91 98765 43210" />
+            </div>
+            <div class="form-group">
+              <label>Support Email</label>
+              <input type="email" id="setSupportEmail" placeholder="support@example.com" />
+            </div>
+            <div class="form-group">
+              <label>Auto-verify after (minutes, 0 = manual only)</label>
+              <input type="number" id="setAutoVerify" placeholder="0" min="0" max="1440" />
+              <div class="hint">Set 0 to require manual approval. Set a time to auto-approve submitted UTRs.</div>
+            </div>
+            <div class="form-group">
+              <label>Webhook URL</label>
+              <input type="url" id="setWebhook" placeholder="https://your-server.com/webhook" />
+              <div class="hint">Called on payment events: utr_submitted, payment_verified, payment_rejected.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="settingsError" class="hidden alert alert-danger mt-2"></div>
+        <div id="settingsSuccess" class="hidden alert alert-success mt-2">Settings saved successfully.</div>
+        <button class="btn btn-primary btn-lg mt-2" onclick="saveSettings()">Save Settings</button>
+      </div>
+
+    </div><!-- /page-content -->
+  </main>
+</div>
+
+<!-- ── View/Action modal ── -->
+<div class="modal-overlay hidden" id="orderModal">
+  <div class="modal" style="max-width:520px">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <h3 id="modalTitle">Order Details</h3>
+    <div id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<script>
+  let adminToken = null;
+  let currentPage   = 'dashboard';
+  let ordersPage    = 1;
+  let ordersFilter  = 'all';
+  let ordersSearch  = '';
+  let searchTimer   = null;
+  let createdLink   = '';
+
+  // ── Auth ──────────────────────────────────────────────────────────
+
+  async function doLogin() {
+    const pw  = document.getElementById('pwInput').value;
+    const err = document.getElementById('loginError');
+    err.classList.add('hidden');
+    try {
+      const res  = await api('POST', '/api/admin/login', { password: pw }, false);
+      adminToken = res.token;
+      localStorage.setItem('adminToken', adminToken);
+      startApp();
+    } catch (e) {
+      err.classList.remove('hidden');
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem('adminToken');
+    adminToken = null;
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('pwInput').value = '';
+  }
+
+  document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  // Auto-login from storage
+  const stored = localStorage.getItem('adminToken');
+  if (stored) {
+    adminToken = stored;
+    startApp();
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────
+
+  async function startApp() {
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    await loadSettings();
+    showPage('dashboard');
+  }
+
+  // ── API ───────────────────────────────────────────────────────────
+
+  async function api(method, url, body, auth = true) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (auth) headers['x-admin-token'] = adminToken;
+    const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    const data = await res.json();
+    if (!res.ok) {
+      if (res.status === 401) { logout(); }
+      throw new Error(data.error || 'Request failed');
+    }
+    return data;
+  }
+
+  // ── Navigation ────────────────────────────────────────────────────
+
+  const pages = ['dashboard', 'create', 'orders', 'settings'];
+  function showPage(name) {
+    currentPage = name;
+    pages.forEach(p => {
+      document.getElementById(`page-${p}`).classList.toggle('hidden', p !== name);
+      document.getElementById(`nav-${p}`).classList.toggle('active', p === name);
+    });
+    const titles = { dashboard: 'Dashboard', create: 'Create Payment', orders: 'All Orders', settings: 'Settings' };
+    document.getElementById('pageTitle').textContent = titles[name] || name;
+
+    if (name === 'dashboard') { loadStats(); loadSubmitted(); }
+    if (name === 'orders')    { loadOrders(); }
+    if (name === 'settings')  { loadSettings(); }
+    if (name === 'create')    { loadRecentLinks(); }
+  }
+
+  // ── Settings ─────────────────────────────────────────────────────
+
+  async function loadSettings() {
+    try {
+      const s = await api('GET', '/api/admin/settings');
+      document.getElementById('setUpiId').value        = s.upi_id || '';
+      document.getElementById('setMerchantName').value = s.merchant_name || '';
+      document.getElementById('setMerchantLogo').value = s.merchant_logo || '';
+      document.getElementById('setSupportPhone').value = s.support_phone || '';
+      document.getElementById('setSupportEmail').value = s.support_email || '';
+      document.getElementById('setAutoVerify').value   = s.auto_verify_minutes || '0';
+      document.getElementById('setWebhook').value      = s.webhook_url || '';
+      document.getElementById('merchantBadge').textContent = s.merchant_name + ' · ' + s.upi_id;
+    } catch (_) {}
+  }
+
+  async function saveSettings() {
+    const errEl = document.getElementById('settingsError');
+    const okEl  = document.getElementById('settingsSuccess');
+    errEl.classList.add('hidden');
+    okEl.classList.add('hidden');
+    try {
+      await api('PUT', '/api/admin/settings', {
+        upi_id:              document.getElementById('setUpiId').value.trim(),
+        merchant_name:       document.getElementById('setMerchantName').value.trim(),
+        merchant_logo:       document.getElementById('setMerchantLogo').value.trim(),
+        support_phone:       document.getElementById('setSupportPhone').value.trim(),
+        support_email:       document.getElementById('setSupportEmail').value.trim(),
+        auto_verify_minutes: document.getElementById('setAutoVerify').value,
+        webhook_url:         document.getElementById('setWebhook').value.trim(),
+      });
+      okEl.classList.remove('hidden');
+      await loadSettings();
+      setTimeout(() => okEl.classList.add('hidden'), 3000);
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.remove('hidden');
+    }
+  }
+
+  // ── Stats ────────────────────────────────────────────────────────
+
+  async function loadStats() {
+    try {
+      const s = await api('GET', '/api/admin/stats');
+      document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-card primary">
+          <div class="stat-label">Total Orders</div>
+          <div class="stat-value">${s.total}</div>
+          <div class="stat-sub">All time</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-label">Collected</div>
+          <div class="stat-value">₹${fmtN(s.totalCollected)}</div>
+          <div class="stat-sub">${s.verified} verified</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-label">Pending Verify</div>
+          <div class="stat-value">${s.submitted}</div>
+          <div class="stat-sub">₹${fmtN(s.pendingAmount)}</div>
+        </div>
+        <div class="stat-card info">
+          <div class="stat-label">Awaiting Payment</div>
+          <div class="stat-value">${s.pending}</div>
+          <div class="stat-sub">Not yet paid</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Rejected</div>
+          <div class="stat-value" style="color:var(--danger)">${s.rejected}</div>
+          <div class="stat-sub">Declined</div>
+        </div>
+      `;
+    } catch (_) {}
+  }
+
+  // ── Submitted orders ──────────────────────────────────────────────
+
+  async function loadSubmitted() {
+    const el = document.getElementById('submittedTable');
+    try {
+      const { orders } = await api('GET', '/api/admin/orders?status=submitted&limit=10');
+      if (!orders.length) {
+        el.innerHTML = '<div class="empty-state"><div class="emoji">✨</div><p>No pending verifications</p></div>';
+        return;
+      }
+      el.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Order ID</th><th>Description</th><th>Amount</th><th>UTR</th><th>Submitted</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${orders.map(o => `
+                <tr>
+                  <td class="order-id-cell">${o.order_id}</td>
+                  <td>${esc(o.description)}</td>
+                  <td class="amount-cell">₹${fmtN(o.amount)}</td>
+                  <td class="utr-cell">${o.utr_id || '—'}</td>
+                  <td>${relTime(o.utr_submitted_at)}</td>
+                  <td class="actions-cell">
+                    <button class="btn btn-success btn-sm" onclick="verifyOrder('${o.id}','${esc(o.order_id)}')">✓ Verify</button>
+                    <button class="btn btn-danger btn-sm"  onclick="rejectOrder('${o.id}','${esc(o.order_id)}')">✗ Reject</button>
+                    <button class="btn btn-ghost btn-sm"   onclick="viewOrder('${o.id}')">View</button>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    } catch (e) {
+      el.innerHTML = `<div class="empty-state"><p>Error loading orders</p></div>`;
+    }
+  }
+
+  // ── All Orders ────────────────────────────────────────────────────
+
+  async function loadOrders() {
+    const body = document.getElementById('ordersBody');
+    body.innerHTML = '<tr><td colspan="8" class="empty-state">Loading…</td></tr>';
+    try {
+      const params = new URLSearchParams({ page: ordersPage, limit: 15 });
+      if (ordersFilter !== 'all') params.set('status', ordersFilter);
+      if (ordersSearch) params.set('search', ordersSearch);
+
+      const { orders, total } = await api('GET', `/api/admin/orders?${params}`);
+      document.getElementById('ordersTotal').textContent = `${total} total`;
+
+      if (!orders.length) {
+        body.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="emoji">📭</div><p>No orders found</p></div></td></tr>';
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+
+      body.innerHTML = orders.map(o => `
+        <tr>
+          <td class="order-id-cell">${o.order_id}</td>
+          <td>${esc(o.description)}</td>
+          <td>${esc(o.customer_name || '—')}</td>
+          <td class="amount-cell">₹${fmtN(o.amount)}</td>
+          <td class="utr-cell">${o.utr_id || '—'}</td>
+          <td>${badgeHtml(o.status)}</td>
+          <td>${relTime(o.created_at)}</td>
+          <td class="actions-cell">
+            ${o.status === 'submitted' ? `
+              <button class="btn btn-success btn-sm" onclick="verifyOrder('${o.id}','${esc(o.order_id)}')">✓</button>
+              <button class="btn btn-danger btn-sm"  onclick="rejectOrder('${o.id}','${esc(o.order_id)}')">✗</button>
+            ` : ''}
+            <button class="btn btn-ghost btn-sm" onclick="viewOrder('${o.id}')">View</button>
+          </td>
+        </tr>`).join('');
+
+      // Pagination
+      const totalPages = Math.ceil(total / 15);
+      let pages = '';
+      for (let i = 1; i <= totalPages; i++) {
+        pages += `<button class="page-btn ${i === ordersPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+      }
+      document.getElementById('pagination').innerHTML =
+        `<button class="page-btn" onclick="goPage(${ordersPage-1})" ${ordersPage<=1?'disabled':''}>‹</button>
+         ${pages}
+         <button class="page-btn" onclick="goPage(${ordersPage+1})" ${ordersPage>=totalPages?'disabled':''}>›</button>`;
+    } catch (e) {
+      body.innerHTML = `<tr><td colspan="8" class="empty-state">Error loading orders</td></tr>`;
+    }
+  }
+
+  function setFilter(f) {
+    ordersFilter = f;
+    ordersPage = 1;
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.toggle('active', t.dataset.status === f));
+    loadOrders();
+  }
+  function goPage(p) { ordersPage = p; loadOrders(); }
+  function debouncedSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { ordersSearch = document.getElementById('searchInput').value; ordersPage = 1; loadOrders(); }, 350);
+  }
+
+  // ── View / Verify / Reject ────────────────────────────────────────
+
+  async function viewOrder(id) {
+    try {
+      const { orders } = await api('GET', `/api/admin/orders?limit=1`);
+      // fetch full order by searching admin orders — easier to GET by id
+      // We'll reuse the list with a trick: search by exact id substring not ideal,
+      // but we pass the id to the modal directly from loaded data
+      openOrderModal(id);
+    } catch (_) {}
+  }
+
+  // Cache loaded orders for modal lookup
+  let ordersCache = {};
+
+  async function openOrderModal(id) {
+    // Re-fetch from API to get latest
+    try {
+      const { orders } = await api('GET', `/api/admin/orders?limit=200`);
+      orders.forEach(o => ordersCache[o.id] = o);
+    } catch (_) {}
+
+    const o = ordersCache[id];
+    if (!o) return;
+
+    document.getElementById('modalTitle').textContent = `Order: ${o.order_id}`;
+    document.getElementById('modalBody').innerHTML = `
+      <div class="order-detail-row"><span class="order-detail-label">Amount</span><span class="order-detail-value">₹${fmtN(o.amount)}</span></div>
+      <div class="order-detail-row"><span class="order-detail-label">Description</span><span class="order-detail-value">${esc(o.description)}</span></div>
+      <div class="order-detail-row"><span class="order-detail-label">Customer</span><span class="order-detail-value">${esc(o.customer_name || '—')}</span></div>
+      <div class="order-detail-row"><span class="order-detail-label">Email</span><span class="order-detail-value">${esc(o.customer_email || '—')}</span></div>
+      <div class="order-detail-row"><span class="order-detail-label">Status</span><span class="order-detail-value">${badgeHtml(o.status)}</span></div>
+      <div class="order-detail-row"><span class="order-detail-label">UTR ID</span><span class="order-detail-value" style="font-family:monospace;font-weight:700">${o.utr_id || '—'}</span></div>
+      <div class="order-detail-row"><span class="order-detail-label">Created</span><span class="order-detail-value">${fmtDate(o.created_at)}</span></div>
+      <div class="order-detail-row"><span class="order-detail-label">UTR Submitted</span><span class="order-detail-value">${o.utr_submitted_at ? fmtDate(o.utr_submitted_at) : '—'}</span></div>
+      <div class="order-detail-row"><span class="order-detail-label">Verified At</span><span class="order-detail-value">${o.verified_at ? fmtDate(o.verified_at) : '—'}</span></div>
+      ${o.notes ? `<div class="order-detail-row"><span class="order-detail-label">Notes</span><span class="order-detail-value">${esc(o.notes)}</span></div>` : ''}
+    `;
+
+    const footer = document.getElementById('modalFooter');
+    footer.innerHTML = '';
+
+    const payLink = `${window.location.origin}/pay/${o.order_id}`;
+    footer.innerHTML += `<button class="btn btn-ghost btn-sm" onclick="copyText('${payLink}')">Copy Pay Link</button>`;
+
+    if (o.status === 'submitted') {
+      footer.innerHTML += `
+        <button class="btn btn-danger" onclick="rejectOrder('${o.id}','${o.order_id}',true)">Reject</button>
+        <button class="btn btn-success" onclick="verifyOrder('${o.id}','${o.order_id}',true)">✓ Verify</button>`;
+    } else if (o.status !== 'pending') {
+      footer.innerHTML += `<button class="btn btn-ghost" onclick="resetOrder('${o.id}')">Reset to Pending</button>`;
+    }
+
+    document.getElementById('orderModal').classList.remove('hidden');
+  }
+
+  function closeModal() { document.getElementById('orderModal').classList.add('hidden'); }
+  document.getElementById('orderModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('orderModal')) closeModal();
+  });
+
+  async function verifyOrder(id, orderId, fromModal = false) {
+    if (!confirm(`Verify payment for ${orderId}?`)) return;
+    try {
+      await api('PUT', `/api/admin/orders/${id}/verify`, {});
+      if (fromModal) closeModal();
+      refresh();
+    } catch (e) { alert(e.message); }
+  }
+
+  async function rejectOrder(id, orderId, fromModal = false) {
+    const notes = prompt(`Reject reason for ${orderId} (optional):`);
+    if (notes === null) return; // cancelled
+    try {
+      await api('PUT', `/api/admin/orders/${id}/reject`, { notes });
+      if (fromModal) closeModal();
+      refresh();
+    } catch (e) { alert(e.message); }
+  }
+
+  async function resetOrder(id) {
+    if (!confirm('Reset this order back to pending? This clears the UTR.')) return;
+    try {
+      await api('PUT', `/api/admin/orders/${id}/reset`, {});
+      closeModal();
+      refresh();
+    } catch (e) { alert(e.message); }
+  }
+
+  function refresh() {
+    if (currentPage === 'dashboard') { loadStats(); loadSubmitted(); }
+    if (currentPage === 'orders')    loadOrders();
+  }
+
+  // ── Create Order ─────────────────────────────────────────────────
+
+  async function createOrder() {
+    const errEl = document.getElementById('createError');
+    errEl.classList.add('hidden');
+    const amount = document.getElementById('createAmount').value;
+    const desc   = document.getElementById('createDesc').value.trim();
+    const name   = document.getElementById('createName').value.trim();
+    const email  = document.getElementById('createEmail').value.trim();
+
+    if (!amount || !desc) {
+      errEl.textContent = 'Amount and description are required.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    try {
+      const data = await api('POST', '/api/admin/orders', { amount: Number(amount), description: desc, customerName: name, customerEmail: email });
+      const link = `${window.location.origin}/pay/${data.order.order_id}`;
+      createdLink = link;
+      document.getElementById('linkUrl').textContent = link;
+      document.getElementById('createdOrderId').textContent = data.order.order_id;
+      document.getElementById('linkResult').style.display = 'block';
+      document.getElementById('createAmount').value = '';
+      document.getElementById('createDesc').value = '';
+      document.getElementById('createName').value = '';
+      document.getElementById('createEmail').value = '';
+      loadRecentLinks();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.remove('hidden');
+    }
+  }
+
+  async function loadRecentLinks() {
+    const el = document.getElementById('recentLinksTable');
+    try {
+      const { orders } = await api('GET', '/api/admin/orders?limit=8');
+      if (!orders.length) { el.innerHTML = '<div class="empty-state"><p>No orders yet</p></div>'; return; }
+      el.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Order ID</th><th>Description</th><th>Amount</th><th>Status</th><th>Created</th><th>Link</th></tr></thead>
+            <tbody>
+              ${orders.map(o => `<tr>
+                <td class="order-id-cell">${o.order_id}</td>
+                <td>${esc(o.description)}</td>
+                <td class="amount-cell">₹${fmtN(o.amount)}</td>
+                <td>${badgeHtml(o.status)}</td>
+                <td>${relTime(o.created_at)}</td>
+                <td><button class="btn btn-ghost btn-sm" onclick="copyText('${window.location.origin}/pay/${o.order_id}')">Copy</button>
+                    <a href="/pay/${o.order_id}" target="_blank" class="btn btn-outline btn-sm">Open</a></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    } catch (_) { el.innerHTML = '<div class="empty-state"><p>Error loading</p></div>'; }
+  }
+
+  function copyLink() { copyText(createdLink); }
+  function openLink() { window.open(createdLink, '_blank'); }
+
+  // ── Helpers ───────────────────────────────────────────────────────
+
+  function fmtN(n) {
+    return Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtDate(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  }
+  function relTime(d) {
+    if (!d) return '—';
+    const diff = Date.now() - new Date(d).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1)  return 'just now';
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h/24)}d ago`;
+  }
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function badgeHtml(status) {
+    const map = {
+      pending:   ['⏳','badge-pending'],
+      submitted: ['📨','badge-submitted'],
+      verified:  ['✅','badge-verified'],
+      rejected:  ['❌','badge-rejected'],
+    };
+    const [icon, cls] = map[status] || ['?',''];
+    return `<span class="badge ${cls}">${icon} ${status}</span>`;
+  }
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      // tiny toast
+      const t = document.createElement('div');
+      t.textContent = 'Copied!';
+      Object.assign(t.style, {
+        position:'fixed',bottom:'2rem',left:'50%',transform:'translateX(-50%)',
+        background:'#1e1b4b',color:'#fff',padding:'.5rem 1.2rem',borderRadius:'99px',
+        fontSize:'.85rem',fontWeight:'600',zIndex:'999',pointerEvents:'none',
+      });
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 1800);
+    } catch (_) {}
+  }
+
+  // Cache all orders so modal can look them up
+  document.addEventListener('click', async e => {
+    if (!e.target.matches('.btn')) return;
+    // cache refresh on every action for freshness is done inline
+  });
+</script>
+</body>
+</html>

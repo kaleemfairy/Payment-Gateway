@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UPI Payment Gateway</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    .home-hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      text-align: center;
+      padding: 2rem;
+    }
+    .home-hero h1 { font-size: 2.4rem; font-weight: 700; color: var(--primary); }
+    .home-hero p { color: var(--text-muted); font-size: 1.1rem; max-width: 480px; }
+    .home-card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      box-shadow: var(--shadow-md);
+      width: 100%;
+      max-width: 480px;
+    }
+    .home-card h2 { font-size: 1.2rem; margin-bottom: 1.2rem; color: var(--text); }
+    .lookup-form { display: flex; gap: 0.75rem; }
+    .lookup-form input { flex: 1; }
+  </style>
+</head>
+<body>
+  <div class="home-hero">
+    <div>
+      <div class="logo-icon" style="margin: 0 auto 1rem;">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <rect width="48" height="48" rx="14" fill="#4f46e5"/>
+          <path d="M14 24l7 7 13-14" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1>UPI Payment Gateway</h1>
+      <p>Fast, secure UPI payments with instant QR code and UTR verification.</p>
+    </div>
+
+    <div class="home-card">
+      <h2>Look up your payment</h2>
+      <div class="lookup-form">
+        <input type="text" id="orderInput" placeholder="Enter Order ID (e.g. ORD-ABC123)" />
+        <button class="btn btn-primary" onclick="lookup()">Go</button>
+      </div>
+      <p class="hint" style="margin-top: 0.75rem; font-size:0.85rem; color:var(--text-muted);">
+        Enter the order ID shared with you by the merchant.
+      </p>
+    </div>
+
+    <a href="/admin" class="btn btn-ghost" style="font-size:0.9rem;">Admin Panel &rarr;</a>
+  </div>
+
+  <script>
+    function lookup() {
+      const v = document.getElementById('orderInput').value.trim().toUpperCase();
+      if (!v) return;
+      window.location.href = `/pay/${v}`;
+    }
+    document.getElementById('orderInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') lookup();
+    });
+  </script>
+</body>
+</html>

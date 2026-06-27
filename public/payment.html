@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pay Now — UPI Payment</title>
+  <link rel="stylesheet" href="/style.css" />
+  <!-- QR code library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
+
+    .pay-page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .pay-header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .pay-header .brand {
+      color: rgba(255,255,255,.9);
+      font-size: 0.95rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+    .pay-header .brand-logo {
+      width: 32px; height: 32px;
+      background: rgba(255,255,255,.2);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .pay-card {
+      background: var(--white);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 480px;
+      overflow: hidden;
+    }
+
+    /* Amount banner */
+    .amount-banner {
+      background: var(--primary-light);
+      border-bottom: 1px solid #c7d2fe;
+      padding: 1.5rem 2rem;
+      text-align: center;
+    }
+    .amount-banner .label { font-size: 0.82rem; color: var(--primary); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+    .amount-banner .amount { font-size: 2.4rem; font-weight: 700; color: var(--primary); line-height: 1.1; margin: 0.25rem 0; }
+    .amount-banner .desc   { font-size: 0.9rem; color: var(--text-muted); }
+
+    /* Order meta */
+    .order-meta {
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .order-meta .order-id { font-weight: 600; color: var(--text); font-family: monospace; letter-spacing: .04em; }
+
+    /* Payment body */
+    .pay-body { padding: 2rem; }
+
+    /* Steps */
+    .steps { display: flex; flex-direction: column; gap: 1.5rem; }
+    .step  { display: flex; gap: 1rem; }
+    .step-num {
+      width: 28px; height: 28px; flex-shrink: 0;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700;
+    }
+    .step-content { flex: 1; }
+    .step-title   { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem; }
+    .step-desc    { font-size: 0.84rem; color: var(--text-muted); }
+
+    /* QR section */
+    .qr-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.5rem;
+      background: var(--bg);
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-lg);
+      margin: 0.75rem 0;
+    }
+    #qr-canvas canvas, #qr-canvas img {
+      border-radius: 10px;
+      border: 6px solid #fff;
+      box-shadow: var(--shadow-md);
+    }
+    .qr-loading { color: var(--text-muted); font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
+
+    /* UPI ID copy */
+    .upi-copy {
+      display: flex;
+      align-items: center;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin: 0.75rem 0;
+    }
+    .upi-copy .upi-id-text {
+      flex: 1;
+      padding: 0.7rem 1rem;
+      font-family: monospace;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .upi-copy .copy-btn {
+      padding: 0.7rem 1rem;
+      background: var(--primary-light);
+      border: none;
+      border-left: 1.5px solid var(--border);
+      cursor: pointer;
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: background .18s;
+    }
+    .upi-copy .copy-btn:hover { background: #c7d2fe; }
+
+    .open-upi-btn { margin: 0.75rem 0; }
+
+    /* UTR form */
+    .utr-section {
+      margin-top: 0.75rem;
+    }
+    .utr-input-wrap { position: relative; }
+    .utr-input-wrap input { padding-right: 3.5rem; font-family: monospace; font-size: 1rem; font-weight: 600; letter-spacing: .05em; }
+    .utr-clear {
+      position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 1.2rem;
+    }
+
+    /* Status section */
+    .status-section { margin-top: 2rem; }
+    .status-card {
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .status-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .status-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.35rem; }
+    .status-body  { font-size: 0.88rem; }
+    .status-verified { background: var(--success-light); color: #065f46; }
+    .status-rejected { background: var(--danger-light);  color: #7f1d1d; }
+    .status-submitted { background: var(--info-light);   color: #0c4a6e; }
+    .status-pulse {
+      display: inline-block;
+      width: 10px; height: 10px;
+      background: var(--info);
+      border-radius: 50%;
+      margin-right: 0.4rem;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .4; transform: scale(.8); }
+    }
+
+    /* Footer */
+    .pay-footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,.6);
+    }
+    .pay-footer a { color: rgba(255,255,255,.8); }
+
+    .divider {
+      border: none; border-top: 1px solid var(--border);
+      margin: 1.5rem 0;
+    }
+
+    @media (max-width: 480px) {
+      .pay-body { padding: 1.5rem; }
+      .amount-banner { padding: 1.25rem 1.5rem; }
+      .order-meta    { padding: 0.75rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="pay-page">
+    <div class="pay-header">
+      <div class="brand">
+        <span class="brand-logo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="2"/>
+          </svg>
+        </span>
+        <span id="merchantName">Loading…</span>
+      </div>
+    </div>
+
+    <!-- Loading state -->
+    <div id="loadingState" class="pay-card" style="padding:3rem;text-align:center;">
+      <div class="spinner spinner-dark" style="margin:0 auto 1rem;"></div>
+      <p class="text-muted">Loading payment details…</p>
+    </div>
+
+    <!-- Error state -->
+    <div id="errorState" class="pay-card hidden" style="padding:3rem;text-align:center;">
+      <div style="font-size:3rem;margin-bottom:1rem;">⚠️</div>
+      <h3 style="margin-bottom:.5rem;">Order Not Found</h3>
+      <p class="text-muted" id="errorMsg">This payment link is invalid or expired.</p>
+      <a href="/" class="btn btn-primary mt-2">Go Home</a>
+    </div>
+
+    <!-- Payment card -->
+    <div id="payCard" class="pay-card hidden">
+      <!-- Amount banner -->
+      <div class="amount-banner">
+        <div class="label">Total Amount</div>
+        <div class="amount" id="payAmount">₹0.00</div>
+        <div class="desc" id="payDesc">—</div>
+      </div>
+
+      <!-- Order meta -->
+      <div class="order-meta">
+        <span class="text-muted">Order ID</span>
+        <span class="order-id" id="payOrderId">—</span>
+      </div>
+
+      <!-- Body -->
+      <div class="pay-body">
+        <!-- Already verified / rejected -->
+        <div id="statusSection" class="hidden status-section"></div>
+
+        <!-- Active payment steps -->
+        <div id="paySteps">
+          <div class="steps">
+            <!-- Step 1: Scan / UPI ID -->
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <div class="step-title">Scan QR or use UPI ID</div>
+                <div class="qr-box">
+                  <div id="qr-canvas">
+                    <div class="qr-loading">
+                      <div class="spinner spinner-dark"></div> Generating QR…
+                    </div>
+                  </div>
+                  <div class="text-muted" style="font-size:0.8rem;">or pay using UPI ID</div>
+                  <div class="upi-copy w-full">
+                    <span class="upi-id-text" id="upiIdText">—</span>
+                    <button class="copy-btn" onclick="copyUpiId()">Copy</button>
+                  </div>
+                  <a id="openUpiLink" href="#" class="btn btn-primary btn-block open-upi-btn" target="_blank">
+                    📱 Open UPI App
+                  </a>
+                </div>
+                <div class="step-desc">
+                  Open any UPI app (PhonePe, GPay, Paytm, BHIM…), scan the QR or enter the UPI ID, and complete the payment.
+                </div>
+              </div>
+            </div>
+
+            <hr class="divider" />
+
+            <!-- Step 2: Enter UTR -->
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <div class="step-title">Enter UTR / Transaction ID</div>
+                <div class="step-desc">After payment, find the UTR (Unique Transaction Reference) in your UPI app and enter it below.</div>
+
+                <div class="utr-section" id="utrSection">
+                  <div class="form-group mt-2">
+                    <label for="utrInput">UTR / Transaction ID</label>
+                    <div class="utr-input-wrap">
+                      <input
+                        type="text"
+                        id="utrInput"
+                        placeholder="e.g. 431100123456"
+                        maxlength="22"
+                        autocomplete="off"
+                        spellcheck="false"
+                      />
+                      <button class="utr-clear hidden" id="utrClearBtn" onclick="clearUtr()">×</button>
+                    </div>
+                    <div class="hint">12–22 alphanumeric characters. Found in your UPI app transaction history.</div>
+                    <div class="error-msg hidden" id="utrError"></div>
+                  </div>
+                  <button class="btn btn-success btn-block btn-lg" id="submitBtn" onclick="submitUtr()">
+                    ✓ Confirm Payment
+                  </button>
+                </div>
+
+                <!-- Submitted state inside step 2 -->
+                <div id="submittedInline" class="hidden alert alert-info mt-2">
+                  <span class="status-pulse"></span>
+                  <div>
+                    <strong>UTR submitted.</strong> Your payment is being verified.
+                    <div id="submittedUtrDisplay" style="font-family:monospace;font-weight:700;margin-top:.25rem;font-size:1rem;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Support -->
+        <div id="supportRow" class="text-center mt-3 hidden">
+          <span class="text-muted" style="font-size:0.82rem;">Need help? </span>
+          <a id="supportLink" href="#" style="font-size:0.82rem;">Contact support</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="pay-footer">
+      Secured by UPI &bull; Payments are end-to-end encrypted
+    </div>
+  </div>
+
+  <script>
+    const orderId = window.location.pathname.split('/pay/')[1];
+    let order = null;
+    let config = null;
+    let pollTimer = null;
+
+    async function init() {
+      try {
+        const [cfgRes, orderRes] = await Promise.all([
+          fetch('/api/config'),
+          fetch(`/api/orders/${orderId}`)
+        ]);
+
+        if (!orderRes.ok) throw new Error('Order not found');
+        config = await cfgRes.json();
+        order  = await orderRes.json();
+
+        document.getElementById('merchantName').textContent = config.merchantName;
+        document.title = `Pay ₹${fmt(order.amount)} — ${config.merchantName}`;
+        render();
+      } catch (e) {
+        show('errorState');
+        document.getElementById('errorMsg').textContent = e.message || 'Order not found.';
+      }
+    }
+
+    function fmt(n) {
+      return Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function show(id) {
+      ['loadingState','errorState','payCard'].forEach(s => {
+        document.getElementById(s).classList.toggle('hidden', s !== id);
+      });
+    }
+
+    function render() {
+      show('payCard');
+      document.getElementById('payAmount').textContent = `₹${fmt(order.amount)}`;
+      document.getElementById('payDesc').textContent   = order.description;
+      document.getElementById('payOrderId').textContent = order.order_id;
+
+      const upiId = config.upiId;
+      const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(config.merchantName)}&am=${order.amount}&cu=INR&tn=${encodeURIComponent(order.description)}&tr=${encodeURIComponent(order.order_id)}`;
+
+      document.getElementById('upiIdText').textContent = upiId;
+      document.getElementById('openUpiLink').href = upiLink;
+
+      // Support link
+      if (config.supportPhone || config.supportEmail) {
+        document.getElementById('supportRow').classList.remove('hidden');
+        const link = document.getElementById('supportLink');
+        if (config.supportPhone) {
+          link.href = `tel:${config.supportPhone}`;
+          link.textContent = config.supportPhone;
+        } else {
+          link.href = `mailto:${config.supportEmail}`;
+          link.textContent = config.supportEmail;
+        }
+      }
+
+      // Generate QR
+      generateQR(upiLink);
+
+      // Render status
+      renderStatus();
+    }
+
+    function generateQR(text) {
+      const el = document.getElementById('qr-canvas');
+      el.innerHTML = '';
+      try {
+        new QRCode(el, {
+          text: text,
+          width: 220,
+          height: 220,
+          colorDark: '#1e1b4b',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.H,
+        });
+      } catch(e) {
+        el.innerHTML = '<p class="text-muted" style="font-size:.8rem">QR generation failed.<br/>Use UPI ID below.</p>';
+      }
+    }
+
+    function renderStatus() {
+      const statusSection  = document.getElementById('statusSection');
+      const paySteps       = document.getElementById('paySteps');
+      const utrSection     = document.getElementById('utrSection');
+      const submittedInline = document.getElementById('submittedInline');
+
+      statusSection.className = 'status-section hidden';
+      utrSection.classList.remove('hidden');
+      submittedInline.classList.add('hidden');
+
+      if (order.status === 'verified') {
+        statusSection.classList.remove('hidden');
+        statusSection.innerHTML = `
+          <div class="status-card status-verified">
+            <div class="status-icon">✅</div>
+            <div class="status-title">Payment Verified!</div>
+            <div class="status-body">
+              Your payment of <strong>₹${fmt(order.amount)}</strong> has been confirmed.<br/>
+              UTR: <code style="font-weight:700">${order.utr_id}</code>
+            </div>
+          </div>`;
+        utrSection.classList.add('hidden');
+        submittedInline.classList.add('hidden');
+        clearInterval(pollTimer);
+
+      } else if (order.status === 'rejected') {
+        statusSection.classList.remove('hidden');
+        statusSection.innerHTML = `
+          <div class="status-card status-rejected">
+            <div class="status-icon">❌</div>
+            <div class="status-title">Payment Rejected</div>
+            <div class="status-body">
+              ${order.notes ? `Reason: ${order.notes}<br/>` : ''}
+              Please contact support or try again.
+            </div>
+          </div>`;
+        utrSection.classList.remove('hidden');
+        clearInterval(pollTimer);
+
+      } else if (order.status === 'submitted') {
+        utrSection.classList.add('hidden');
+        submittedInline.classList.remove('hidden');
+        document.getElementById('submittedUtrDisplay').textContent = `UTR: ${order.utr_id}`;
+        startPolling();
+      }
+    }
+
+    function startPolling() {
+      if (pollTimer) return;
+      pollTimer = setInterval(async () => {
+        try {
+          const res  = await fetch(`/api/orders/${orderId}`);
+          const data = await res.json();
+          if (data.status !== order.status) {
+            order = data;
+            renderStatus();
+          }
+        } catch (_) {}
+      }, 5000);
+    }
+
+    async function submitUtr() {
+      const input = document.getElementById('utrInput');
+      const errEl = document.getElementById('utrError');
+      const btn   = document.getElementById('submitBtn');
+      const utr   = input.value.trim().toUpperCase();
+
+      errEl.classList.add('hidden');
+      errEl.textContent = '';
+
+      if (!utr) {
+        errEl.textContent = 'Please enter your UTR / transaction ID.';
+        errEl.classList.remove('hidden');
+        input.focus();
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Verifying…';
+
+      try {
+        const res  = await fetch(`/api/orders/${orderId}/submit-utr`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ utrId: utr }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to submit UTR');
+        order = data.order;
+        renderStatus();
+      } catch (e) {
+        errEl.textContent = e.message;
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = '✓ Confirm Payment';
+      }
+    }
+
+    function clearUtr() {
+      const input = document.getElementById('utrInput');
+      input.value = '';
+      document.getElementById('utrClearBtn').classList.add('hidden');
+      input.focus();
+    }
+
+    function copyUpiId() {
+      const id = document.getElementById('upiIdText').textContent;
+      navigator.clipboard.writeText(id).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy', 2000);
+      }).catch(() => {
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = id;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      });
+    }
+
+    document.getElementById('utrInput').addEventListener('input', function() {
+      document.getElementById('utrClearBtn').classList.toggle('hidden', !this.value);
+      document.getElementById('utrError').classList.add('hidden');
+    });
+
+    document.getElementById('utrInput').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') submitUtr();
+    });
+
+    init();
+  </script>
+</body>
+</html>
